@@ -7,7 +7,7 @@ RES_DIR = $(SRC_DIR)/resources
 OUT_DIR = $(SRC_DIR)/output
 
 all:
-	$(PYTHON) -O $(SRC_DIR)/coref.py $(ARGS)
+	$(PYTHON) -O coref.py $(ARGS)
 
 dev:
 	$(PYTHON) $(SRC_DIR)/coref.py $(RES_DIR)/devset/input.listfile $(OUT_DIR)
