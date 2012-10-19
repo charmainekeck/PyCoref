@@ -11,7 +11,9 @@ Copyright 2012 Adam Walz, Charmaine Keck
 This file contains class definitions for:
 """
 
+import errno
 from sys import argv
+from os import strerror
 
 def main():
     try:
@@ -19,16 +21,18 @@ def main():
         responsedir = argv[2]
     except IndexError:
         print("ERROR: Not enough arguments")
-        return 1
+        return errno.EINVAL
 
     try:
         with open(listfile) as f:
             pass
     except IOError:
             print("ERROR: Could not open list file")
-            exit(1)
+            return errno.EIO
 
     return 0
 
 if __name__ == '__main__':
-    exit(main())
+    result = main()
+    print strerror(result)
+    exit(result)
