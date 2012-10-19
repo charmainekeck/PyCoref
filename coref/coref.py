@@ -23,14 +23,26 @@ def main():
         print("ERROR: Not enough arguments")
         return errno.EINVAL
 
-    try:
-        with open(listfile) as f:
-            pass
-    except IOError:
-            print("ERROR: Could not open list file")
-            return errno.EIO
+    parses, nps = {}, {}
+    
+    for fid in parses.keys():
+        outfile = _get_outfile_name(fid, responsedir)
+        output( find_corefs(parses[fid], nps[fid]), outfile )
 
     return 0
+
+
+def find_corefs(parse, nps):
+    pass
+
+
+def output(corefs, outfile):
+    pass
+
+
+def _get_outfile_name(fid, responsedir):
+    return '%s/%s.response' % (responsedir, fid)
+
 
 if __name__ == '__main__':
     result = main()
