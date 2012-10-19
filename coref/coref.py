@@ -15,6 +15,8 @@ import errno
 from sys import argv
 from os import strerror
 
+from data import get_parses
+
 def main():
     try:
         listfile = argv[1]
@@ -23,7 +25,7 @@ def main():
         print("ERROR: Not enough arguments")
         return errno.EINVAL
 
-    parses, nps = {}, {}
+    parses, nps = get_parses(listfile)
     
     for fid in parses.keys():
         outfile = _get_outfile_name(fid, responsedir)
