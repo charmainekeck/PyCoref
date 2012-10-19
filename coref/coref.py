@@ -35,11 +35,15 @@ def main():
 
 
 def find_corefs(parse, nps):
-    pass
+    return '<TXT></TXT>'
 
 
 def output(corefs, outfile):
-    pass
+    try:
+        with open(outfile, 'w') as f:
+            f.write(corefs)
+    except IOError:
+        print "Error: %s could not be written to" % outfile
 
 
 def _get_outfile_name(fid, responsedir):
