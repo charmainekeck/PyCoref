@@ -9,13 +9,15 @@
     :copyright: (c) 2012 by Adam Walz, Charmaine Keck
     :license: 
 """
+import pprint
+from os import strerror
+from errno import EIO
+from xml.dom.minidom import parseString
 
-import nltk
 import jsonrpc
 from simplejson import loads
-from xml.dom.minidom import parseString
-from errno import EIO
-from os import strerror
+from nltk import sent_tokenize
+from nltk.tree import Tree
 
 from helpers import static_var
 
@@ -92,12 +94,13 @@ def get_parse(filename):
             text = _remove_tags(text)
 
             parses = []
-            for sent in nltk.sent_tokenize(text):
-                #print 'FILE: %s' % filename
-                #rint sent
-                parses.append(loads(server.parse(sent)))
-            print parses[0]
-        return parses, nps
+            for sent in sent_tokenize(text):
+                parse = loads(server.parse(sent))
+                parse = _process_parse(parse)
+                if parse:
+                    parses.append(parse)
+            
+            return parses, nps
 
     except IOError:
         print strerror(EIO)
@@ -131,18 +134,28 @@ def _remove_tags(xml):
     
     i = 0
     while i < len(chars):
-        # iterate until a left-angle bracket is found
         if chars[i] == '<':
             while chars[i] != '>':
-                # pop everything from the the left-angle bracket until the right-angle bracket
+                # pop everything between brackets
                 chars.pop(i)
             # pops the right-angle bracket, too
             chars.pop(i)
         else:
             i += 1
                 
-    # convert the list back into text
     return ''.join(chars)
+
+
+def _process_parse(parse):
+    sentence = parse.get('sentences')
+    if not sentence:
+        return None
+    
+    tree = Tree.parse(sentence[0]['parsetree'])
+    words = [(w[0], w[1]) for w in sentence[0]['words']]
+    dependencies = [(d[0], d[1], d[2]) for d in sentence[0]['dependencies']]
+    
+    return tree, words, dependencies
 
 
 @static_var("id", '1A')
