@@ -73,18 +73,6 @@ def get_parse(filename):
         
         Returns:
             tuple, (paragraph_list, noun_phrase_dict)
-
-    >>> get_parses("<TXT>The man ran to <COREF ID=“1”>his house</COREF></TXT>")
-    ([
-      (ROOT
-        (S
-          (NP (DT The) (NN man))
-          (VP
-            (VBD ran)
-            (PP
-              (%1 (PRP his) (NN house)) ))))],
-     {1: ('his house', None)}
-    )
     """
     global server
     
@@ -119,6 +107,21 @@ def get_parse(filename):
 
 
 def get_tagged_corefs(xml):
+    """Parses xml to find all tagged coreferences contained in COREF tags
+        
+        Returns:
+            dict, {coref_id: (coref, ref_id)
+    
+    >>> text = "<TXT>John stubbed <COREF ID='1'>his</COREF></TXT>"
+    >>> get_tagged_corefs(text)
+    {u'1': (u'his', None)}
+    
+    >>> text = "<TXT><COREF ID='A'>John</COREF> stubbed \
+                <COREF ID='1' REF='A'>his</COREF> toe</TXT>"
+    >>> get_tagged_corefs(text)
+    {u'A': (u'John', None), u'1': (u'his', u'A')}
+    """
+    
     nps = {}
     
     corefs = parseString(xml).getElementsByTagName('COREF')
