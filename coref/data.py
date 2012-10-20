@@ -216,6 +216,11 @@ def get_synsets(words):
     
 @static_var("id", '1A')
 def _mk_coref_id():
+    """Creates a unique coreference id tag
+    
+    Note: only unique if input id's are not of the form num+alpha
+    
+    """
     num, alpha = int(_mk_coref_id.id[:-1]), _mk_coref_id.id[-1]
     if alpha == 'Z':
         alpha = 'A'
