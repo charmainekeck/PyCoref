@@ -109,6 +109,9 @@ def get_parse(filename):
 def get_tagged_corefs(xml):
     """Parses xml to find all tagged coreferences contained in COREF tags
         
+        Args:
+            xml: string, xml markedup with COREF tags
+
         Returns:
             dict, {coref_id: (coref, ref_id)
     
@@ -146,6 +149,9 @@ def get_tagged_corefs(xml):
 def _remove_tags(xml):
     """Removes xml tags from string, returning non-markedup text
         
+        Args:
+            xml: string, xml markedup text
+
         Returns:
             string, text from xml
     
@@ -188,6 +194,20 @@ def _process_parse(parse):
 
 
 def get_synsets(words):
+    """Returns sets of cognitive synonyms for each of the input words
+        
+        Args:
+            words: dict, {word: (pos1, pos2, ...)}
+
+        Returns:
+            dict, {synset_name: (syn1, syn2, syn3, ...)}
+    
+        >>> words = {u'apple': (u'NN')}
+        >>> get_synsets(words) # doctest: +NORMALIZE_WHITESPACE
+        {'apple.n.01': ('apple',), \
+         'apple.n.02': ('apple', 'orchard_apple_tree', 'Malus_pumila')}
+    
+    """
     synsets = {}
     for word in words:
         for syn in wn.synsets(word):
