@@ -109,8 +109,6 @@ def get_parse(filename):
                     tags.add(attr['PartOfSpeech'])
                     pos_tags[word] = tags
             synsets = get_synsets(pos_tags)
-            pp = pprint.PrettyPrinter(indent=4)
-            pp.pprint(synsets)
             
             return parses, nps, synsets
 
