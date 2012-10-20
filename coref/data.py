@@ -18,6 +18,7 @@ import jsonrpc
 from simplejson import loads
 from nltk import sent_tokenize
 from nltk.tree import Tree
+from nltk.corpus import wordnet as wn
 
 from helpers import static_var
 
@@ -48,8 +49,9 @@ def get_parses(listfile):
     
     parses = {}
     nps = {}
+    synsets = {}
     for fid, parse in files.items():
-        parses[fid], nps[fid] = parse
+        parses[fid], nps[fid], synsets[fid] = parse
     
     return parses, nps
 
@@ -100,7 +102,17 @@ def get_parse(filename):
                 if parse:
                     parses.append(parse)
             
-            return parses, nps
+            pos_tags = {}
+            for parse in parses:
+                for word, attr in parse[1]:
+                    tags = pos_tags.get(word, set())
+                    tags.add(attr['PartOfSpeech'])
+                    pos_tags[word] = tags
+            synsets = get_synsets(pos_tags)
+            pp = pprint.PrettyPrinter(indent=4)
+            pp.pprint(synsets)
+            
+            return parses, nps, synsets
 
     except IOError:
         print strerror(EIO)
@@ -158,6 +170,13 @@ def _process_parse(parse):
     return tree, words, dependencies
 
 
+def get_synsets(words):
+    synsets = {}
+    for word in words:
+        for syn in wn.synsets(word):
+            synsets[syn.name] = tuple([lemma.name for lemma in syn.lemmas])
+    return synsets
+    
 @static_var("id", '1A')
 def _mk_coref_id():
     num, alpha = int(_mk_coref_id.id[:-1]), _mk_coref_id.id[-1]
