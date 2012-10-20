@@ -112,14 +112,15 @@ def get_tagged_corefs(xml):
         Returns:
             dict, {coref_id: (coref, ref_id)
     
-    >>> text = "<TXT>John stubbed <COREF ID='1'>his</COREF></TXT>"
+    >>> text = "<TXT>John stubbed <COREF ID='1'>his</COREF> toe.</TXT>"
     >>> get_tagged_corefs(text)
     {u'1': (u'his', None)}
     
-    >>> text = "<TXT><COREF ID='A'>John</COREF> stubbed \
-                <COREF ID='1' REF='A'>his</COREF> toe</TXT>"
+    >>> text = "<TXT><COREF ID='A'>John</COREF> stubbed " +\
+                "<COREF ID='1' REF='A'>his</COREF> toe.</TXT>"
     >>> get_tagged_corefs(text)
     {u'A': (u'John', None), u'1': (u'his', u'A')}
+    
     """
     
     nps = {}
@@ -143,6 +144,21 @@ def get_tagged_corefs(xml):
         
 
 def _remove_tags(xml):
+    """Removes xml tags from string, returning non-markedup text
+        
+        Returns:
+            string, text from xml
+    
+    >>> xml = "<TXT>John stubbed <COREF ID='1'>his</COREF> toe.</TXT>"
+    >>> _remove_tags(xml)
+    'John stubbed his toe.'
+    
+    >>> xml = "<TXT><COREF ID='A'>John</COREF> stubbed " +\
+                "<COREF ID='1' REF='A'>his</COREF> toe.</TXT>"
+    >>> _remove_tags(xml)
+    'John stubbed his toe.'
+    
+    """
     chars = list(xml)
     
     i = 0
