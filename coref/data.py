@@ -10,10 +10,16 @@
     :license: 
 """
 
+import nltk
+import jsonrpc
+from simplejson import loads
 from errno import EIO
 from os import strerror
 
 from helpers import static_var
+
+server = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(),
+        jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
 
 class FilenameException(Exception):
     pass
@@ -28,17 +34,19 @@ def get_parses(listfile):
         error = 'has incorrect file type'
         raise FilenameException("Error: %s %s" % (filetype, error))
 
-    parses = {}
-    nps = {}
     try:
         with open(listfile) as f:
-            for filename in f.readlines():
-                fid = get_id(filename)
-                parses[fid], nps[fid] = get_parse(filename)
+            files = dict([(get_id(file), get_parse(file))
+                for file in f.readlines() if file.lstrip()[0] != '#'])
     except IOError:
             print strerror(EIO)
             print("ERROR: Could not open list file")
             exit(EIO)
+    
+    parses = {}
+    nps = {}
+    for fid, parse in files.items():
+        parses[fid], nps[fid] = parse
     
     return parses, nps
 
@@ -46,7 +54,7 @@ def get_parses(listfile):
 def get_id(filename):
     """
     """
-    fid, ext, _ = filename.split('/')[-1].partition('.crf')
+    fid, ext, _ = filename.strip().split('/')[-1].partition('.crf')
     if not fid or ext != '.crf':
         filetype = 'Co-Reference Input file'
         error = 'has incorrect file type'
@@ -73,7 +81,23 @@ def get_parse(filename):
      {1: None}
     )
     """
-    return (None, None)
+    global server
+    
+    parses = []
+    nps = {}
+    try:
+        with open(filename.strip()) as f:
+            print 'OPEN: %s' % filename
+            for sent in nltk.sent_tokenize(f.read()):
+                #print 'FILE: %s' % filename
+                #rint sent
+                parses.append(loads(server.parse(sent)))
+
+    except IOError:
+        print strerror(EIO)
+        print("ERROR: Could not open %s" % filename)
+    
+    return (parses, nps)
 
 @static_var("id", '1A')
 def _mk_coref_id():
