@@ -13,6 +13,7 @@
 import nltk
 import jsonrpc
 from simplejson import loads
+from xml.dom.minidom import parseString
 from errno import EIO
 from os import strerror
 
@@ -78,26 +79,71 @@ def get_parse(filename):
             (VBD ran)
             (PP
               (%1 (PRP his) (NN house)) ))))],
-     {1: None}
+     {1: ('his house', None)}
     )
     """
     global server
     
-    parses = []
-    nps = {}
     try:
         with open(filename.strip()) as f:
             print 'OPEN: %s' % filename
-            for sent in nltk.sent_tokenize(f.read()):
+            text = f.read()
+            nps = get_tagged_corefs(text)
+            text = _remove_tags(text)
+
+            parses = []
+            for sent in nltk.sent_tokenize(text):
                 #print 'FILE: %s' % filename
                 #rint sent
                 parses.append(loads(server.parse(sent)))
+            print parses[0]
+        return parses, nps
 
     except IOError:
         print strerror(EIO)
         print("ERROR: Could not open %s" % filename)
+        return ([], {})
+
+
+def get_tagged_corefs(xml):
+    nps = {}
     
-    return (parses, nps)
+    corefs = parseString(xml).getElementsByTagName('COREF')
+    for coref in corefs:
+        try:
+            id = coref.attributes['ID'].value
+        except KeyError:
+            continue
+            
+        try:
+            ref = coref.attributes['REF'].value
+        except KeyError:
+            ref = None
+        
+        data = coref.firstChild.data
+        nps[id] = (data, ref)
+    
+    return nps
+        
+
+def _remove_tags(xml):
+    chars = list(xml)
+    
+    i = 0
+    while i < len(chars):
+        # iterate until a left-angle bracket is found
+        if chars[i] == '<':
+            while chars[i] != '>':
+                # pop everything from the the left-angle bracket until the right-angle bracket
+                chars.pop(i)
+            # pops the right-angle bracket, too
+            chars.pop(i)
+        else:
+            i += 1
+                
+    # convert the list back into text
+    return ''.join(chars)
+
 
 @static_var("id", '1A')
 def _mk_coref_id():
