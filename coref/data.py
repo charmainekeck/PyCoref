@@ -56,10 +56,26 @@ def get_parses(listfile):
     return parses, nps
 
 
-def get_id(filename):
+def get_id(path):
+    """Parses a file path for the filename without extension
+    
+    Args:
+        path: string, full (or relative) file path for coreference file.
+              Must end in .crf
+    
+    Returns:
+        string, file id (filename without extension)
+        
+    >>> path = '/home/user/Desktop/full.crf'
+    >>> get_id(path)
+    'full'
+    
+    >>> path = 'relative.crf'
+    >>> get_id(path)
+    'relative'
+    
     """
-    """
-    fid, ext, _ = filename.strip().split('/')[-1].partition('.crf')
+    fid, ext, _ = path.strip().split('/')[-1].partition('.crf')
     if not fid or ext != '.crf':
         filetype = 'Co-Reference Input file'
         error = 'has incorrect file type'
