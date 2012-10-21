@@ -15,7 +15,7 @@ import errno
 from sys import argv
 from os import strerror
 
-from data import get_parses
+import data
 
 def main():
     try:
@@ -25,16 +25,16 @@ def main():
         print("ERROR: Not enough arguments")
         return errno.EINVAL
 
-    parses, nps = get_parses(listfile)
-    
-    for fid in parses.keys():
+    parses = data.mk_parses(listfile)
+
+    for fid, file_parse in parses.items():
         outfile = _get_outfile_name(fid, responsedir)
-        output( find_corefs(parses[fid], nps[fid]), outfile )
+        output( find_corefs(file_parse), outfile )
 
     return 0
 
 
-def find_corefs(parse, nps):
+def find_corefs(parse):
     return '<TXT></TXT>'
 
 

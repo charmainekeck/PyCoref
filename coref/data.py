@@ -25,11 +25,27 @@ from helpers import static_var
 server = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(),
         jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
 
+class FileParse():
+    def __init__(self, filename):
+        parses = mk_parse(filename)
+        self.parses = [Parse(p) for p in parses[0]]
+        self.nps = parses[1]
+        self.synsets = parses[2]
+
+
+class Parse():
+    def __init__(self, parse):
+        self.text = parse[3]
+        self.ptree = parse[0]
+        self.dependencies = parse[2]
+        self.words = parse[1]
+
+
 class FilenameException(Exception):
     pass
 
 
-def get_parses(listfile):
+def mk_parses(listfile):
     """
     """
     
@@ -40,20 +56,14 @@ def get_parses(listfile):
 
     try:
         with open(listfile) as f:
-            files = dict([(get_id(file), get_parse(file))
+            parses = dict([(get_id(file), FileParse(file))
                 for file in f.readlines() if file.lstrip()[0] != '#'])
     except IOError:
             print strerror(EIO)
             print("ERROR: Could not open list file")
             exit(EIO)
-    
-    parses = {}
-    nps = {}
-    synsets = {}
-    for fid, parse in files.items():
-        parses[fid], nps[fid], synsets[fid] = parse
-    
-    return parses, nps
+    else:
+        return parses
 
 
 def get_id(path):
@@ -83,7 +93,7 @@ def get_id(path):
     return fid
 
 
-def get_parse(filename):
+def mk_parse(filename):
     """Parses input to get list of paragraphs with sentence structure
         and a dictionary of noun phrases contained in the COREF tags
         
@@ -105,7 +115,6 @@ def get_parse(filename):
                 parse = _process_parse(parse)
                 if parse:
                     parses.append(parse)
-            
             pos_tags = {}
             for parse in parses:
                 for word, attr in parse[1]:
@@ -205,8 +214,9 @@ def _process_parse(parse):
     tree = Tree.parse(sentence[0]['parsetree'])
     words = [(w[0], w[1]) for w in sentence[0]['words']]
     dependencies = [(d[0], d[1], d[2]) for d in sentence[0]['dependencies']]
+    text = sentence[0]['text']
     
-    return tree, words, dependencies
+    return tree, words, dependencies, text
 
 
 def get_synsets(words):
