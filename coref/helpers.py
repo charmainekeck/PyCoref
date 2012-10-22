@@ -18,6 +18,13 @@ def static_var(varname, value):
     return decorate
 
 def mk_verbose_printer(verbose):
+    """Creates a global verbose print method named vprint if verbose flag
+    is set. If verbose flag is set, vprint mimics the builtin print statment.
+    If verbose flag is not set, vprint does nothing.
+    
+    Args:
+        verbose, boolean if verbose flag is set
+    """
     global vprint
     if verbose:
         def vprint(*args):

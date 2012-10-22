@@ -71,15 +71,20 @@ if __name__ == '__main__':
             http://www.eng.utah.edu/~cs5340/project/project.pdf"""
     parser = argparse.ArgumentParser(
         description='Coreference Resolution Engine', epilog=pinfo)
+        
+    # Get required and optional arguments
     parser.add_argument("listfile", help="File containing file path strings")
     parser.add_argument("responsedir", help="Path to output directory")
     parser.add_argument("-v", "--verbose", help="increase output verbosity",
                         action="store_true")
     args = parser.parse_args()
 
+    # if verbose flag is True, create global method vprint which prints to
+    # stdout only in verbose mode
     import helpers
     helpers.mk_verbose_printer(args.verbose)
     
+    # Now that vprint is created, we can import the rest of the modules
     from helpers import vprint
     from data import get_parses
 
