@@ -26,7 +26,30 @@ def main(args):
 
 
 def find_corefs(parse, nps):
-    return '<TXT></TXT>'
+    return format_output(parse, nps)
+
+
+def format_output(parse, nps):
+    """Takes the nps and file parse and formats the output in xml
+    by listing each coreference with id and prior referent if applicable.
+    
+    Args:
+        parse: #TODO after get_parses is written
+        nps: dict, {id: (text, prior_ref)}
+    
+    Returns:
+        string, xml markup with COREF tags
+
+    """
+    xml = '<XML>\n'
+    for cid, np in nps.items():
+        assert np[0], "Coref dict has no data for COREF ID='%s'" % cid
+        if np[1]:
+            ref = " REF='%s'" % np[1]
+        else:
+            ref = ''
+        xml += "<COREF ID='%s'%s>%s</COREF>\n" % (cid, ref, np[0])
+    return xml + "</XML>"
 
 
 def output(corefs, outfile):

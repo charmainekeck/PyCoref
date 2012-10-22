@@ -74,7 +74,7 @@ def get_parse(filename):
      {1: None}
     )
     """
-    return (None, None)
+    return ([], {})
 
 @static_var("id", '1A')
 def _mk_coref_id():
