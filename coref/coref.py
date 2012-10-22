@@ -13,7 +13,7 @@ This file contains class definitions for:
 
 import errno
 import argparse
-from sys import argv
+from sys import argv, stderr
 from os import strerror
 
 def main(args):
@@ -34,7 +34,7 @@ def output(corefs, outfile):
         with open(outfile, 'w') as f:
             f.write(corefs)
     except IOError:
-        print "Error: %s could not be written to" % outfile
+        stderr.write("Error: %s could not be written to" % outfile)
 
 
 def _get_outfile_name(fid, responsedir):

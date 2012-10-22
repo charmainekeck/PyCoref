@@ -11,6 +11,7 @@
 """
 
 from errno import EIO
+from sys import stderr
 from os import strerror
 
 from helpers import static_var
@@ -36,8 +37,8 @@ def get_parses(listfile):
                 fid = get_id(filename)
                 parses[fid], nps[fid] = get_parse(filename)
     except IOError:
-            print strerror(EIO)
-            print("ERROR: Could not open list file")
+            stderr.write(strerror(EIO))
+            stderr.write("\nERROR: Could not open list file\n")
             exit(EIO)
     
     return parses, nps
