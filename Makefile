@@ -20,7 +20,7 @@ all:
 	$(PYTHON) -O coref.py $(ARGS)
 
 dev:
-	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR)
+	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) -v
 
 dev-score: dev
 	$(PYTHON) $(SCORER) $(OUTLIST) $(KEYDIR) -V
