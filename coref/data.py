@@ -59,8 +59,8 @@ def mk_parses(listfile):
             parses = dict([(get_id(file), FileParse(file))
                 for file in f.readlines() if file.lstrip()[0] != '#'])
     except IOError:
-            print strerror(EIO)
-            print("ERROR: Could not open list file")
+            stderr.write(strerror(EIO))
+            stderr.write("\nERROR: Could not open list file\n")
             exit(EIO)
     else:
         return parses
