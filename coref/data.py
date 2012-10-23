@@ -107,9 +107,11 @@ def mk_parse(filename):
             print 'OPEN: %s' % filename
             text = f.read()
             nps = get_tagged_corefs(text)
-            text = _remove_tags(text)
+            text = _remove_tags(text, nps)
+            
+            for cid, np in nps.items():
+                print "cid: %s, data=%s" % (cid, np)
 
-            #REMEMBER: turn on stanford core nlp server in order for this to work
             parses = []
             for sent in sent_tokenize(text):
                 parse = loads(server.parse(sent))
@@ -151,7 +153,6 @@ def get_tagged_corefs(xml):
     {u'A': (u'John', None), u'1': (u'his', u'A')}
     
     """
-    
     nps = {}
     
     corefs = parseString(xml).getElementsByTagName('COREF')
@@ -173,7 +174,7 @@ def get_tagged_corefs(xml):
     return nps
 
 
-def _remove_tags(xml):
+def _remove_tags(xml, nps):
     """Removes xml tags from string, returning non-markedup text
         
         Args:
@@ -192,18 +193,38 @@ def _remove_tags(xml):
     'John stubbed his toe.'
     
     """
+    linenum = 0
+    cindex = 0
+    
     chars = list(xml)
     
     i = 0
     while i < len(chars):
+        if chars[i] == '\n':
+            linenum += 1
+            cindex = 0
+
         if chars[i] == '<':
             while chars[i] != '>':
                 # pop everything between brackets
                 chars.pop(i)
+                
+                if chars[i] == "\'" or chars[i] == "\"":
+                    chars.pop(i)
+                    cid = ''
+                    while (chars[i] != "\'" and chars[i] != "\""):
+                        cid += chars.pop(i)
+                    
+                    data = nps.get(cid, {})
+                    data['linenum'] = linenum
+                    data['cindex'] = cindex
+                    nps[cid] = data
+                        
             # pops the right-angle bracket, too
             chars.pop(i)
         else:
             i += 1
+            cindex += 1
                 
     return ''.join(chars)
 
