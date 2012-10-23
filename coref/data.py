@@ -109,6 +109,7 @@ def mk_parse(filename):
             nps = get_tagged_corefs(text)
             text = _remove_tags(text)
 
+            #REMEMBER: turn on stanford core nlp server in order for this to work
             parses = []
             for sent in sent_tokenize(text):
                 parse = loads(server.parse(sent))
