@@ -156,20 +156,21 @@ def get_tagged_corefs(xml):
     corefs = parseString(xml).getElementsByTagName('COREF')
     for coref in corefs:
         try:
-            id = coref.attributes['ID'].value
+            cid = coref.attributes['ID'].value
+            data = nps.get(cid, {})
         except KeyError:
             continue
             
         try:
-            ref = coref.attributes['REF'].value
+            data['ref'] = coref.attributes['REF'].value
         except KeyError:
-            ref = None
+            pass
         
-        data = coref.firstChild.data
-        nps[id] = (data, ref)
+        data['text'] = coref.firstChild.data
+        nps[cid] = data
     
     return nps
-        
+
 
 def _remove_tags(xml):
     """Removes xml tags from string, returning non-markedup text
