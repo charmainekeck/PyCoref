@@ -9,36 +9,35 @@
     :copyright: (c) 2012 by Adam Walz, Charmaine Keck
     :license: 
 """
-import pprint
+import re
 from os import strerror
 from errno import EIO
 from xml.dom.minidom import parseString
 
 import jsonrpc
 from simplejson import loads
-from nltk import sent_tokenize
+from nltk import sent_tokenize, word_tokenize
 from nltk.tree import Tree
 from nltk.corpus import wordnet as wn
 
-from helpers import static_var
-
-server = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(),
-        jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
+from helpers import static_var, vprint
 
 class FileParse():
     def __init__(self, filename):
-        parses = mk_parse(filename)
-        self.parses = [Parse(p) for p in parses[0]]
-        self.nps = parses[1]
-        self.synsets = parses[2]
+        pserver = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(),
+                jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
+        fparse = mk_parse(filename, pserver)
+        self.parses = [Parse(p) for p in fparse[0]]
+        self.nps = fparse[1]
+        self.synsets = fparse[2]
 
 
 class Parse():
     def __init__(self, parse):
-        self.text = parse[3]
         self.ptree = parse[0]
-        self.dependencies = parse[2]
         self.words = parse[1]
+        self.dependencies = parse[2]
+        self.text = parse[3]
 
 
 class FilenameException(Exception):
@@ -49,7 +48,7 @@ def mk_parses(listfile):
     """
     """
     
-    if not listfile.find('.listfile'):
+    if not listfile.endswith('.listfile'):
         filetype = 'Co-Reference List file'
         error = 'has incorrect file type'
         raise FilenameException("Error: %s %s" % (filetype, error))
@@ -93,7 +92,7 @@ def get_id(path):
     return fid
 
 
-def mk_parse(filename):
+def mk_parse(filename, pserver):
     """Parses input to get list of paragraphs with sentence structure
         and a dictionary of noun phrases contained in the COREF tags
         
@@ -105,19 +104,15 @@ def mk_parse(filename):
     try:
         with open(filename.strip()) as f:
             print 'OPEN: %s' % filename
-            text = f.read()
-            nps = get_tagged_corefs(text)
-            text = _remove_tags(text, nps)
-            
-            for cid, np in nps.items():
-                print "cid: %s, data=%s" % (cid, np)
+            xml = f.read()
+            nps = get_tagged_corefs(xml)
+            rawtext = _remove_tags(xml)
 
             parses = []
-            for sent in sent_tokenize(text):
-                parse = loads(server.parse(sent))
-                parse = _process_parse(parse)
-                if parse:
-                    parses.append(parse)
+            for sent in sent_tokenize(rawtext):
+                parses.append(loads(pserver.parse(sent.strip())))
+            parses = _process_parses(parses, nps)
+
             pos_tags = {}
             for parse in parses:
                 for word, attr in parse[1]:
@@ -132,6 +127,29 @@ def mk_parse(filename):
         print strerror(EIO)
         print("ERROR: Could not open %s" % filename)
         return ([], {})
+
+
+def tag_ptrees(ptrees, corefs):
+    tag_trees = ptrees[:]
+    currparse = 0
+    pattern =  r'(?P<lp>\(?\s*)(?P<tg>\w+)?(?P<data>\s*%s)(?P<rp>(?:\s*\))*)'
+
+    for cid, coref in corefs.items():
+        words = word_tokenize(coref['text'])
+        for tree in ptrees[currparse:]:
+            dpattern = r'\s*'.join([r'\(\s*[a-zA-Z$]+\s+%s\s*\)' % word
+                        for word in words])
+            
+            found = re.findall(pattern % dpattern, tree)
+            if found:
+                params = found[0][0], found[0][1], cid, found[0][2], found[0][3]
+                repl = '%s%s (COREF_TAG_%s %s ) %s' % params
+                tag_trees[currparse] = re.sub(pattern % dpattern, repl, tree, 1)
+                break
+            else:
+                currparse += 1
+
+    return tag_trees
 
 
 def get_tagged_corefs(xml):
@@ -207,17 +225,26 @@ def _remove_tags(xml):
     return ''.join(chars)
 
 
-def _process_parse(parse):
-    sentence = parse.get('sentences')
-    if not sentence:
-        return None
+def _process_parses(parses, nps):
+    ptrees = []
+    for parse in parses:
+        sentence = parse.get('sentences')
+        if sentence:
+            ptrees.append(sentence[0]['parsetree'])
+    ptrees = tag_ptrees(ptrees, nps)
     
-    tree = Tree.parse(sentence[0]['parsetree'])
-    words = [(w[0], w[1]) for w in sentence[0]['words']]
-    dependencies = [(d[0], d[1], d[2]) for d in sentence[0]['dependencies']]
-    text = sentence[0]['text']
+    pparses = []
+    for parse in parses:
+        sentence = parse.get('sentences')
+        if sentence:
+            tree = Tree.parse(ptrees.pop(0))
+            words = [(w[0], w[1]) for w in sentence[0]['words']]
+            depends = [(d[0], d[1], d[2]) for d in sentence[0]['dependencies']]
+            text = sentence[0]['text']
+            
+            pparses.append((tree, words, depends, text))
     
-    return tree, words, dependencies, text
+    return pparses
 
 
 def get_synsets(words):
