@@ -18,19 +18,19 @@ from os import strerror
 
 
 def main(args):
-    parses, nps = get_parses(args.listfile)
+    parses = mk_parses(args.listfile)
     for fid in parses.keys():
         outfile = _get_outfile_name(fid, args.responsedir)
-        output( find_corefs(parses[fid], nps[fid]), outfile )
+        output( find_corefs(parses[fid]), outfile )
 
     return 0
 
 
-def find_corefs(parse, nps):
-    return format_output(parse, nps)
+def find_corefs(parse):
+    return format_output(parse)
 
 
-def format_output(parse, nps):
+def format_output(parse):
     """Takes the nps and file parse and formats the output in xml
     by listing each coreference with id and prior referent if applicable.
     
@@ -43,13 +43,13 @@ def format_output(parse, nps):
 
     """
     xml = '<XML>\n'
-    for cid, np in nps.items():
-        assert np[0], "Coref dict has no data for COREF ID='%s'" % cid
-        if np[1]:
-            ref = " REF='%s'" % np[1]
+    for cid, np in parse.nps.items():
+        assert np['text'], "Coref dict has no text for COREF ID='%s'" % cid
+        if np.get('ref'):
+            ref = " REF='%s'" % np['ref']
         else:
             ref = ''
-        xml += "<COREF ID='%s'%s>%s</COREF>\n" % (cid, ref, np[0])
+        xml += "<COREF ID='%s'%s>%s</COREF>\n" % (cid, ref, np['text'])
     return xml + "</XML>"
 
 
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     
     # Now that vprint is created, we can import the rest of the modules
     from helpers import vprint
-    from data import get_parses
+    from data import mk_parses
 
     result = main(args)
     vprint(strerror(result))
