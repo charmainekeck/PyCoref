@@ -106,28 +106,32 @@ def mk_fparse(filename, pserver):
         with open(filename) as f:
             vprint('OPEN: %s' % filename)
             xml = f.read()
-            nps = get_tagged_corefs(xml)
-            rawtext = _remove_tags(xml)
-
-            parses = []
-            for sent in sent_tokenize(rawtext):
-                parses.append(loads(pserver.parse(sent.strip())))
-            parses = _process_parses(parses, nps)
-
-            pos_tags = {}
-            for parse in parses:
-                for word, attr in parse[1]:
-                    tags = pos_tags.get(word, set())
-                    tags.add(attr['PartOfSpeech'])
-                    pos_tags[word] = tags
-            synsets = get_synsets(pos_tags)
-            
-            return parses, nps, synsets
-
     except IOError:
         print strerror(EIO)
         print("ERROR: Could not open %s" % filename)
         return ([], {})
+    
+    parses = []
+
+    sentences = [sent for part in xml.split('\n\n')
+                        for sent in sent_tokenize(part) ]
+    for sent in sentences:
+        corefs = get_tagged_corefs(sent, ordered=True)
+        parse = loads(pserver.parse(_normalize_sentence(_remove_tags(sent))))
+        pparse = _process_parse(parse, corefs)
+        if pparse:
+            pparse[0].draw()
+            parses.append(pparse)
+
+    pos_tags = {}
+    for parse in parses:
+        for word, attr in parse[1]:
+            tags = pos_tags.get(word, set())
+            tags.add(attr['PartOfSpeech'])
+            pos_tags[word] = tags
+    synsets = get_synsets(pos_tags)
+            
+    return parses, get_tagged_corefs(xml), synsets
 
 
 def tag_ptree(ptree, coreflist):
@@ -264,26 +268,17 @@ def _remove_tags(xml):
     return ''.join(chars)
 
 
-def _process_parses(parses, nps):
-    ptrees = []
-    for parse in parses:
-        sentence = parse.get('sentences')
-        if sentence:
-            ptrees.append(sentence[0]['parsetree'])
-    ptrees = tag_ptrees(ptrees, nps)
+def _process_parse(parse, coreflist):
+    sentence = parse.get('sentences')
+    if sentence:
+        ptree = Tree.parse(tag_ptree(sentence[0]['parsetree'], coreflist))
+        words = [(w[0], w[1]) for w in sentence[0]['words']]
+        depends = [(d[0], d[1], d[2]) for d in sentence[0]['dependencies']]
+        text = sentence[0]['text']
     
-    pparses = []
-    for parse in parses:
-        sentence = parse.get('sentences')
-        if sentence:
-            tree = Tree.parse(ptrees.pop(0))
-            words = [(w[0], w[1]) for w in sentence[0]['words']]
-            depends = [(d[0], d[1], d[2]) for d in sentence[0]['dependencies']]
-            text = sentence[0]['text']
-            
-            pparses.append((tree, words, depends, text))
-    
-    return pparses
+        return ptree, words, depends, text
+    else:
+        return None
 
 
 def get_synsets(words):
