@@ -130,27 +130,37 @@ def mk_fparse(filename, pserver):
         return ([], {})
 
 
-def tag_ptrees(ptrees, corefs):
-    tag_trees = ptrees[:]
-    currparse = 0
-    pattern =  r'(?P<lp>\(?\s*)(?P<tg>\w+)?(?P<data>\s*%s)(?P<rp>(?:\s*\))*)'
-
-    for cid, coref in corefs.items():
-        words = word_tokenize(coref['text'])
-        for tree in ptrees[currparse:]:
-            dpattern = r'\s*'.join([r'\(\s*[a-zA-Z$]+\s+%s\s*\)' % word
-                        for word in words])
-            
-            found = re.findall(pattern % dpattern, tree)
-            if found:
-                params = found[0][0], found[0][1], cid, found[0][2], found[0][3]
-                repl = '%s%s (COREF_TAG_%s %s ) %s' % params
-                tag_trees[currparse] = re.sub(pattern % dpattern, repl, tree, 1)
+def tag_ptree(ptree, coreflist):
+    pattern = r"""(?P<lp>\(?\s*)       # left parenthesis
+                  (?P<tg>[a-zA-Z$]+)?  # POS tag
+                  (?P<data>\s*%s)      # subtree of tag
+                  (?P<rp>(?:\s*\))*)   # right parenthesis
+               """
+    for cid, coref in coreflist[::-1]:
+        words = ''.join(word_tokenize(coref['text']))
+        
+        nltktree = Tree.parse(ptree)
+        nltktree.reverse() # perform search right to left
+        data = None
+        for subtree in nltktree.subtrees(): # BFS
+            if ''.join(subtree.leaves()) == words: # equal ignoring whitespace
+                data = subtree.pprint()
                 break
-            else:
-                currparse += 1
+        if data:
+            ptree = ptree.replace(data, '(COREF_TAG_%s %s)' % (cid, data))
+        else:
+            dpattern = r'\s*'.join([r'\(\s*[a-zA-Z$]+\s+%s\s*\)' % word
+                                    for word in word_tokenize(coref['text'])])
+            found = re.findall(pattern % dpattern, ptree, re.X)
+            if found:
+                repl = '%s%s (COREF_TAG_%s %s ) %s' % (found[0][0],
+                                                       found[0][1],
+                                                       cid,
+                                                       found[0][2],
+                                                       found[0][3])
+                ptree = re.sub(pattern % dpattern, repl, ptree, 1, re.X)
 
-    return tag_trees
+    return ptree
 
 
 def get_tagged_corefs(xml, ordered=False):
