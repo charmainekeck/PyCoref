@@ -22,6 +22,9 @@ all:
 dev:
 	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) -v
 
+debug:
+	$(PYTHON) -m pdb $(EXEC) $(LISTFILE) $(OUTDIR) -v
+
 dev-score: dev
 	$(PYTHON) $(SCORER) $(OUTLIST) $(KEYDIR) -V
 
