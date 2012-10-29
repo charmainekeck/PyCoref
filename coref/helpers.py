@@ -35,3 +35,9 @@ def mk_verbose_printer(verbose):
             print
     else:
         vprint = lambda *a: None      # do-nothing function
+
+
+def run_doctests():
+    import doctest
+    import data
+    doctest.testmod(data)

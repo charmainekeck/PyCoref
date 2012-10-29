@@ -78,6 +78,8 @@ if __name__ == '__main__':
     parser.add_argument("responsedir", help="Path to output directory")
     parser.add_argument("-v", "--verbose", help="increase output verbosity",
                         action="store_true")
+    parser.add_argument("-t", "--test", help="run doctests only",
+                        action="store_true")
     args = parser.parse_args()
 
     # if verbose flag is True, create global method vprint which prints to
@@ -89,6 +91,9 @@ if __name__ == '__main__':
     from helpers import vprint
     from data import mk_parses
 
-    result = main(args)
-    vprint(strerror(result))
-    exit(result)
+    if args.test:
+        helpers.run_doctests()
+    else:
+        result = main(args)
+        vprint(strerror(result))
+        exit(result)

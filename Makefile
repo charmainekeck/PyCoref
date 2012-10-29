@@ -34,7 +34,8 @@ set1:
 set1-score: set1
 	$(PYTHON) $(SCORER) -d $(OUTLIST:devset=set1) $(KEYDIR:devset=set1) -V
 
-test:
+doctests:
+	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) -t
 
 clean:
 	rm -f $(SRCDIR)/*.py[co]
