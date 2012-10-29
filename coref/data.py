@@ -313,6 +313,8 @@ def _mk_coref_id():
     
     Note: only unique if input id's are not of the form num+alpha
     
+    Returns:
+        string, alphanumeric unique id
     """
     num, alpha = int(_mk_coref_id.id[:-1]), _mk_coref_id.id[-1]
     if alpha == 'Z':
