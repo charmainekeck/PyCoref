@@ -13,6 +13,7 @@ import re
 from os import strerror
 from errno import EIO
 from xml.dom.minidom import parseString
+from xml.parsers.expat import ExpatError
 
 import jsonrpc
 from simplejson import loads
@@ -152,7 +153,7 @@ def tag_ptrees(ptrees, corefs):
     return tag_trees
 
 
-def get_tagged_corefs(xml):
+def get_tagged_corefs(xml, ordered=False):
     """Parses xml to find all tagged coreferences contained in COREF tags
         
         Args:
@@ -171,23 +172,46 @@ def get_tagged_corefs(xml):
     {u'A': (u'John', None), u'1': (u'his', u'A')}
     
     """
-    nps = {}
+
+    if ordered:
+        nps = []
+    else:
+        nps = {}
     
-    corefs = parseString(xml).getElementsByTagName('COREF')
+    xml = xml.strip()
+    if not xml.startswith('<TXT>'):
+        xml = '<TXT>' + xml
+    if not xml.endswith('</TXT>'):
+        xml = xml + '</TXT>'
+    try:
+        corefs = parseString(xml).getElementsByTagName('COREF')
+    except ExpatError:
+        return nps
+
     for coref in corefs:
         try:
             cid = coref.attributes['ID'].value
-            data = nps.get(cid, {})
+            if ordered:
+                data = {}
+                for npid, np in nps:
+                    if npid == cid:
+                        data = np
+                        break
+            else:
+                data = nps.get(cid, {})
         except KeyError:
             continue
             
         try:
             data['ref'] = coref.attributes['REF'].value
         except KeyError:
-            pass
+            data['ref'] = None
         
         data['text'] = coref.firstChild.data
-        nps[cid] = data
+        if ordered:
+            nps.append((cid, data))
+        else:
+            nps[cid] = data
     
     return nps
 
