@@ -1,4 +1,3 @@
-#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 """
     coref.data
@@ -43,13 +42,21 @@ class Parse():
 
 
 class FilenameException(Exception):
+    """Raised when file does not have the correct extension"""
     pass
 
 
 def mk_parses(listfile):
-    """Makes parses
-    """
+    """Creates a list of FileParse objects for the files listed in the listfile
 
+    Args:
+        listfile: string, path to input listfile (see assignment description
+            for listfile details)
+
+    Returns:
+        list of FileParse objects
+
+    """
     if not listfile.endswith('.listfile'):
         filetype = 'Co-Reference List file'
         error = 'has incorrect file type'
@@ -64,7 +71,7 @@ def mk_parses(listfile):
                           for path in f.readlines()
                           if path.lstrip()[0] != '#'])
     except IOError:
-        stderr.write(strerror(EIO))
+        stderr.write(strerror(EIO))  # stderr.write does not have newlines
         stderr.write("\nERROR: Could not open list file\n")
         exit(EIO)
     else:
@@ -102,9 +109,16 @@ def mk_fparse(filename, pserver):
     """Parses input to get list of paragraphs with sentence structure
         and a dictionary of noun phrases contained in the COREF tags
 
-        Returns:
-            tuple, (paragraph_list, noun_phrase_dict)
+    Args:
+        filename: string, path to crf file
+        pserver: jsonrpc.ServerProxy, stanford corenlp server for parsing
+
+    Returns:
+        tuple, (list_stanford_sent_parses, dict_file_corefs, dict_file_synsets)
+
     """
+    parses = []
+
     try:
         with open(filename) as f:
             vprint('OPEN: %s' % filename)
@@ -112,18 +126,15 @@ def mk_fparse(filename, pserver):
     except IOError:
         print strerror(EIO)
         print("ERROR: Could not open %s" % filename)
-        return ([], {})
-
-    parses = []
+        return (parses, get_tagged_corefs(''), get_synsets({}))
 
     sentences = [sent for part in xml.split('\n\n')
                  for sent in sent_tokenize(part)]
     for sent in sentences:
-        corefs = get_tagged_corefs(sent, ordered=True)
-        parse = loads(pserver.parse(_normalize_sentence(_remove_tags(sent))))
-        pparse = _process_parse(parse, corefs)
+        sent_corefs = get_tagged_corefs(sent, ordered=True)
+        sparse = loads(pserver.parse(_normalize_sentence(_remove_tags(sent))))
+        pparse = _process_parse(sparse, sent_corefs)
         if pparse:
-            #pparse[0].draw()
             parses.append(pparse)
 
     pos_tags = {}
@@ -132,12 +143,26 @@ def mk_fparse(filename, pserver):
             tags = pos_tags.get(word, set())
             tags.add(attr['PartOfSpeech'])
             pos_tags[word] = tags
-    synsets = get_synsets(pos_tags)
 
-    return parses, get_tagged_corefs(xml), synsets
+    return parses, get_tagged_corefs(xml), get_synsets(pos_tags)
 
 
 def tag_ptree(ptree, coreflist):
+    """Tags given parse tree with coreferences
+
+    Args:
+        ptree: string, parenthesized str represenation of parse tree
+        coreflist: list of tuples, [('1', {'text': 'dog', 'ref': None})]
+
+    Returns:
+        string, tagged parse tree
+
+    >>> ptree = '(S NP( (NN He)) VP( (V ran)))'
+    >>> coreflist = [('1', {'text': 'He', 'ref': None})]
+    >>> tag_ptree(ptree, coreflist)
+    '(S NP( COREF_TAG_1( (NN He))) VP( (V ran)))'
+
+    """
     pattern = r"""(?P<lp>\(?\s*)       # left parenthesis
                   (?P<tg>[a-zA-Z$]+)?  # POS tag
                   (?P<data>\s*%s)      # subtree of tag
@@ -153,18 +178,20 @@ def tag_ptree(ptree, coreflist):
             if ''.join(subtree.leaves()) == words:  # equal ignoring whitespace
                 data = subtree.pprint()
                 break
+
+        # If found via breadth-first search of parse tree
         if data:
-            ptree = ptree.replace(data, '(COREF_TAG_%s %s)' % (cid, data))
-        else:
+            ptree = ptree.replace(data, '( COREF_TAG_%s%s)' % (cid, data))
+        else:  # Try finding via regex matching instead
             dpattern = r'\s*'.join([r'\(\s*[a-zA-Z$]+\s+%s\s*\)' % word
                                     for word in word_tokenize(coref['text'])])
             found = re.findall(pattern % dpattern, ptree, re.X)
             if found:
-                repl = '%s%s (COREF_TAG_%s %s ) %s' % (found[0][0],
-                                                       found[0][1],
-                                                       cid,
-                                                       found[0][2],
-                                                       found[0][3])
+                repl = '%s%s ( COREF_TAG_%s%s) %s' % (found[0][0],
+                                                      found[0][1],
+                                                      cid,
+                                                      found[0][2],
+                                                      found[0][3])
                 ptree = re.sub(pattern % dpattern, repl, ptree, 1, re.X)
 
     return ptree
@@ -175,21 +202,32 @@ def get_tagged_corefs(xml, ordered=False):
 
         Args:
             xml: string, xml markedup with COREF tags
+            ordered: if True, returns an list in the same order that the corefs
+                appear in the text
 
         Returns:
-            dict, {coref_id: (coref, ref_id)
+            if ordered
+                list of tuples, [(coref_id, {coref, ref_id}), ]
+            if not ordered
+                dict of dict, {coref_id: (coref, ref_id)
 
     >>> text = "<TXT>John stubbed <COREF ID='1'>his</COREF> toe.</TXT>"
     >>> get_tagged_corefs(text)
-    {u'1': (u'his', None)}
+    {u'1': {'text': u'his', 'ref': None}}
+
+    >>> get_tagged_corefs(text, ordered=True)
+    [(u'1', {'text': u'his', 'ref': None})]
 
     >>> text = "<TXT><COREF ID='A'>John</COREF> stubbed " +\
                 "<COREF ID='1' REF='A'>his</COREF> toe.</TXT>"
     >>> get_tagged_corefs(text)
-    {u'A': (u'John', None), u'1': (u'his', u'A')}
+    {u'A': {'text': u'John', 'ref': None}, u'1': {'text': u'his', 'ref': u'A'}}
+
+    >>> get_tagged_corefs(text, ordered=True) # doctest: +NORMALIZE_WHITESPACE
+    [(u'A', {'text': u'John', 'ref': None}),
+     (u'1', {'text': u'his', 'ref': u'A'})]
 
     """
-
     nps = {}
     if ordered:
         nps = []
@@ -230,12 +268,39 @@ def get_tagged_corefs(xml, ordered=False):
 
 
 def _normalize_sentence(sent):
+    """Removes unwanted characters from sentence for parsing
+
+    Args:
+        sent: string, sentence to normalize
+
+    Returns
+        string, normalized sentence
+
+    """
     removed = r'[\n]?'
     nsent = re.sub(removed, '', sent)
     return nsent.strip()
 
 
 def _normalize_malformed_xml(xml):
+    """Ensures that xml begins and ends with <TXT> </TXT> tags
+
+    Args:
+        xml: string, text to be formatted as xml
+
+    Returns:
+        string, formatted xml
+
+    >>> _normalize_malformed_xml('The dog.')
+    '<TXT>The dog.</TXT>'
+    >>> _normalize_malformed_xml('<TXT>The dog.')
+    '<TXT>The dog.</TXT>'
+    >>> _normalize_malformed_xml('The dog.</TXT>')
+    '<TXT>The dog.</TXT>'
+    >>> _normalize_malformed_xml('<TXT>The dog.</TXT>')
+    '<TXT>The dog.</TXT>'
+
+    """
     xml = xml.strip()
     if not xml.startswith('<TXT>'):
         xml = '<TXT>' + xml
@@ -278,6 +343,18 @@ def _remove_tags(xml):
 
 
 def _process_parse(parse, coreflist):
+    """Tags parse tree with corefs and returns the tree, lexicon, dependencies
+    and raw text as tuple
+
+    Args:
+        parse: list of stanford corenlp parsed sentences
+        coreflist: list of coreferences from tagged xml
+
+    Returns:
+        tuple, (ptree, lexicon, dependencies, rawtext) if parse contains a
+            sentence, else returns None
+
+    """
     sentence = parse.get('sentences')
     if sentence:
         ptree = Tree.parse(tag_ptree(sentence[0]['parsetree'], coreflist))
@@ -293,16 +370,16 @@ def _process_parse(parse, coreflist):
 def get_synsets(words):
     """Returns sets of cognitive synonyms for each of the input words
 
-        Args:
-            words: dict, {word: (pos1, pos2, ...)}
+    Args:
+        words: dict, {word: (pos1, pos2, ...)}
 
-        Returns:
-            dict, {synset_name: (syn1, syn2, syn3, ...)}
+    Returns:
+        dict, {synset_name: (syn1, syn2, syn3, ...)}
 
-        >>> words = {u'apple': (u'NN')}
-        >>> get_synsets(words) # doctest: +NORMALIZE_WHITESPACE
-        {'apple.n.01': ('apple',), \
-         'apple.n.02': ('apple', 'orchard_apple_tree', 'Malus_pumila')}
+    >>> words = {u'apple': (u'NN')}
+    >>> get_synsets(words) # doctest: +NORMALIZE_WHITESPACE
+    {'apple.n.01': ('apple',),
+     'apple.n.02': ('apple', 'orchard_apple_tree', 'Malus_pumila')}
 
     """
     synsets = {}
@@ -330,7 +407,3 @@ def _mk_coref_id():
 
     _mk_coref_id.id = '%s%s' % (num, alpha)
     return _mk_coref_id.id
-
-if __name__ == '__main__':
-    import doctest
-    doctest.testmod()
