@@ -103,8 +103,8 @@ def mk_fparse(filename, pserver):
     global server
     
     try:
-        with open(filename.strip()) as f:
-            print 'OPEN: %s' % filename
+        with open(filename) as f:
+            vprint('OPEN: %s' % filename)
             xml = f.read()
             nps = get_tagged_corefs(xml)
             rawtext = _remove_tags(xml)
