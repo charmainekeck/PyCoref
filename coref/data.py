@@ -225,6 +225,11 @@ def get_tagged_corefs(xml, ordered=False):
     
     return nps
 
+def _normalize_sentence(sent):
+    removed = r'[\n]?'
+    nsent = re.sub(removed, '', sent)
+    return nsent.strip()
+
 
 def _remove_tags(xml):
     """Removes xml tags from string, returning non-markedup text
