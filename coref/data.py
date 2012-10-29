@@ -23,10 +23,8 @@ from nltk.corpus import wordnet as wn
 from helpers import static_var, vprint
 
 class FileParse():
-    def __init__(self, filename):
-        pserver = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(),
-                jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
-        fparse = mk_parse(filename, pserver)
+    def __init__(self, filename, pserver):
+        fparse = mk_fparse(filename.strip(), pserver)
         self.parses = [Parse(p) for p in fparse[0]]
         self.nps = fparse[1]
         self.synsets = fparse[2]
@@ -55,7 +53,9 @@ def mk_parses(listfile):
 
     try:
         with open(listfile) as f:
-            parses = dict([(get_id(file), FileParse(file))
+            pserver = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(),
+                    jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
+            parses = dict([(get_id(file), FileParse(file, pserver))
                 for file in f.readlines() if file.lstrip()[0] != '#'])
     except IOError:
             stderr.write(strerror(EIO))
@@ -92,7 +92,7 @@ def get_id(path):
     return fid
 
 
-def mk_parse(filename, pserver):
+def mk_fparse(filename, pserver):
     """Parses input to get list of paragraphs with sentence structure
         and a dictionary of noun phrases contained in the COREF tags
         
