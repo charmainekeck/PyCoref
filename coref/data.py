@@ -4,13 +4,15 @@
     coref.data
     ~~~~~~~~~~~~
 
-    Parese Coreference Resolution Input file processor
+    File Processor
+    Parses 'Coreference Resolution Input File'
 
     :copyright: (c) 2012 by Adam Walz, Charmaine Keck
-    :license: 
+    :license:
 """
 import re
 from os import strerror
+from sys import stderr
 from errno import EIO
 from xml.dom.minidom import parseString
 from xml.parsers.expat import ExpatError
@@ -22,6 +24,7 @@ from nltk.tree import Tree
 from nltk.corpus import wordnet as wn
 
 from helpers import static_var, vprint
+
 
 class FileParse():
     def __init__(self, filename, pserver):
@@ -44,9 +47,9 @@ class FilenameException(Exception):
 
 
 def mk_parses(listfile):
+    """Makes parses
     """
-    """
-    
+
     if not listfile.endswith('.listfile'):
         filetype = 'Co-Reference List file'
         error = 'has incorrect file type'
@@ -55,35 +58,37 @@ def mk_parses(listfile):
     try:
         with open(listfile) as f:
             pserver = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(),
-                    jsonrpc.TransportTcpIp(addr=("127.0.0.1", 8080)))
-            parses = dict([(get_id(file), FileParse(file, pserver))
-                for file in f.readlines() if file.lstrip()[0] != '#'])
+                                          jsonrpc.TransportTcpIp(
+                                          addr=("127.0.0.1", 8080)))
+            parses = dict([(get_id(path), FileParse(path, pserver))
+                          for path in f.readlines()
+                          if path.lstrip()[0] != '#'])
     except IOError:
-            stderr.write(strerror(EIO))
-            stderr.write("\nERROR: Could not open list file\n")
-            exit(EIO)
+        stderr.write(strerror(EIO))
+        stderr.write("\nERROR: Could not open list file\n")
+        exit(EIO)
     else:
         return parses
 
 
 def get_id(path):
     """Parses a file path for the filename without extension
-    
+
     Args:
         path: string, full (or relative) file path for coreference file.
               Must end in .crf
-    
+
     Returns:
         string, file id (filename without extension)
-        
+
     >>> path = '/home/user/Desktop/full.crf'
     >>> get_id(path)
     'full'
-    
+
     >>> path = 'relative.crf'
     >>> get_id(path)
     'relative'
-    
+
     """
     fid, ext, _ = path.strip().split('/')[-1].partition('.crf')
     if not fid or ext != '.crf':
@@ -96,12 +101,10 @@ def get_id(path):
 def mk_fparse(filename, pserver):
     """Parses input to get list of paragraphs with sentence structure
         and a dictionary of noun phrases contained in the COREF tags
-        
+
         Returns:
             tuple, (paragraph_list, noun_phrase_dict)
     """
-    global server
-    
     try:
         with open(filename) as f:
             vprint('OPEN: %s' % filename)
@@ -110,17 +113,17 @@ def mk_fparse(filename, pserver):
         print strerror(EIO)
         print("ERROR: Could not open %s" % filename)
         return ([], {})
-    
+
     parses = []
 
     sentences = [sent for part in xml.split('\n\n')
-                        for sent in sent_tokenize(part) ]
+                 for sent in sent_tokenize(part)]
     for sent in sentences:
         corefs = get_tagged_corefs(sent, ordered=True)
         parse = loads(pserver.parse(_normalize_sentence(_remove_tags(sent))))
         pparse = _process_parse(parse, corefs)
         if pparse:
-            pparse[0].draw()
+            #pparse[0].draw()
             parses.append(pparse)
 
     pos_tags = {}
@@ -130,7 +133,7 @@ def mk_fparse(filename, pserver):
             tags.add(attr['PartOfSpeech'])
             pos_tags[word] = tags
     synsets = get_synsets(pos_tags)
-            
+
     return parses, get_tagged_corefs(xml), synsets
 
 
@@ -142,12 +145,12 @@ def tag_ptree(ptree, coreflist):
                """
     for cid, coref in coreflist[::-1]:
         words = ''.join(word_tokenize(coref['text']))
-        
+
         nltktree = Tree.parse(ptree)
-        nltktree.reverse() # perform search right to left
+        nltktree.reverse()  # perform search right to left
         data = None
-        for subtree in nltktree.subtrees(): # BFS
-            if ''.join(subtree.leaves()) == words: # equal ignoring whitespace
+        for subtree in nltktree.subtrees():  # BFS
+            if ''.join(subtree.leaves()) == words:  # equal ignoring whitespace
                 data = subtree.pprint()
                 break
         if data:
@@ -169,34 +172,30 @@ def tag_ptree(ptree, coreflist):
 
 def get_tagged_corefs(xml, ordered=False):
     """Parses xml to find all tagged coreferences contained in COREF tags
-        
+
         Args:
             xml: string, xml markedup with COREF tags
 
         Returns:
             dict, {coref_id: (coref, ref_id)
-    
+
     >>> text = "<TXT>John stubbed <COREF ID='1'>his</COREF> toe.</TXT>"
     >>> get_tagged_corefs(text)
     {u'1': (u'his', None)}
-    
+
     >>> text = "<TXT><COREF ID='A'>John</COREF> stubbed " +\
                 "<COREF ID='1' REF='A'>his</COREF> toe.</TXT>"
     >>> get_tagged_corefs(text)
     {u'A': (u'John', None), u'1': (u'his', u'A')}
-    
+
     """
 
+    nps = {}
     if ordered:
         nps = []
-    else:
-        nps = {}
-    
-    xml = xml.strip()
-    if not xml.startswith('<TXT>'):
-        xml = '<TXT>' + xml
-    if not xml.endswith('</TXT>'):
-        xml = xml + '</TXT>'
+
+    xml = _normalize_malformed_xml(xml)
+
     try:
         corefs = parseString(xml).getElementsByTagName('COREF')
     except ExpatError:
@@ -215,19 +214,20 @@ def get_tagged_corefs(xml, ordered=False):
                 data = nps.get(cid, {})
         except KeyError:
             continue
-            
+
         try:
             data['ref'] = coref.attributes['REF'].value
         except KeyError:
             data['ref'] = None
-        
+
         data['text'] = coref.firstChild.data
         if ordered:
             nps.append((cid, data))
         else:
             nps[cid] = data
-    
+
     return nps
+
 
 def _normalize_sentence(sent):
     removed = r'[\n]?'
@@ -235,36 +235,45 @@ def _normalize_sentence(sent):
     return nsent.strip()
 
 
+def _normalize_malformed_xml(xml):
+    xml = xml.strip()
+    if not xml.startswith('<TXT>'):
+        xml = '<TXT>' + xml
+    if not xml.endswith('</TXT>'):
+        xml = xml + '</TXT>'
+    return xml
+
+
 def _remove_tags(xml):
     """Removes xml tags from string, returning non-markedup text
-        
+
         Args:
             xml: string, xml markedup text
 
         Returns:
             string, text from xml
-    
+
     >>> xml = "<TXT>John stubbed <COREF ID='1'>his</COREF> toe.</TXT>"
     >>> _remove_tags(xml)
     'John stubbed his toe.'
-    
+
     >>> xml = "<TXT><COREF ID='A'>John</COREF> stubbed " +\
                 "<COREF ID='1' REF='A'>his</COREF> toe.</TXT>"
     >>> _remove_tags(xml)
     'John stubbed his toe.'
-    
+
     """
     chars = list(xml)
-    
+
     i = 0
     while i < len(chars):
         if chars[i] == '<':
             while chars[i] != '>':
-                chars.pop(i) # pop everything between brackets
-            chars.pop(i) # pops the right-angle bracket, too
+                chars.pop(i)  # pop everything between brackets
+            chars.pop(i)  # pops the right-angle bracket, too
         else:
             i += 1
-                
+
     return ''.join(chars)
 
 
@@ -275,7 +284,7 @@ def _process_parse(parse, coreflist):
         words = [(w[0], w[1]) for w in sentence[0]['words']]
         depends = [(d[0], d[1], d[2]) for d in sentence[0]['dependencies']]
         text = sentence[0]['text']
-    
+
         return ptree, words, depends, text
     else:
         return None
@@ -283,31 +292,32 @@ def _process_parse(parse, coreflist):
 
 def get_synsets(words):
     """Returns sets of cognitive synonyms for each of the input words
-        
+
         Args:
             words: dict, {word: (pos1, pos2, ...)}
 
         Returns:
             dict, {synset_name: (syn1, syn2, syn3, ...)}
-    
+
         >>> words = {u'apple': (u'NN')}
         >>> get_synsets(words) # doctest: +NORMALIZE_WHITESPACE
         {'apple.n.01': ('apple',), \
          'apple.n.02': ('apple', 'orchard_apple_tree', 'Malus_pumila')}
-    
+
     """
     synsets = {}
     for word in words:
         for syn in wn.synsets(word):
             synsets[syn.name] = tuple([lemma.name for lemma in syn.lemmas])
     return synsets
-    
+
+
 @static_var("id", '1A')
 def _mk_coref_id():
     """Creates a unique coreference id tag
-    
+
     Note: only unique if input id's are not of the form num+alpha
-    
+
     Returns:
         string, alphanumeric unique id
     """
@@ -317,9 +327,10 @@ def _mk_coref_id():
         num += 1
     else:
         alpha = chr(ord(alpha) + 1)
-    
+
+    _mk_coref_id.id = '%s%s' % (num, alpha)
     return _mk_coref_id.id
-            
+
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
