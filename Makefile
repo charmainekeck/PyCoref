@@ -20,7 +20,10 @@ all:
 	$(PYTHON) -O coref.py $(ARGS)
 
 dev:
-	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR)
+	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) -v
+
+debug:
+	$(PYTHON) -m pdb $(EXEC) $(LISTFILE) $(OUTDIR) -v
 
 dev-score: dev
 	$(PYTHON) $(SCORER) $(OUTLIST) $(KEYDIR) -V
@@ -31,7 +34,8 @@ set1:
 set1-score: set1
 	$(PYTHON) $(SCORER) -d $(OUTLIST:devset=set1) $(KEYDIR:devset=set1) -V
 
-test:
+doctests:
+	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) -t
 
 clean:
 	rm -f $(SRCDIR)/*.py[co]
