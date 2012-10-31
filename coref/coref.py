@@ -16,7 +16,6 @@ import argparse
 from sys import argv, stderr
 from os import strerror
 
-
 def main(args):
     parses = mk_parses(args.listfile)
     for fid in parses.keys():
@@ -26,8 +25,9 @@ def main(args):
     return 0
 
 
-def find_corefs(parse):
-    return format_output(parse)
+def find_corefs(fileparse):
+    apply_rules(fileparse)
+    return format_output(fileparse)
 
 
 def format_output(parse):
@@ -90,6 +90,7 @@ if __name__ == '__main__':
     # Now that vprint is created, we can import the rest of the modules
     from helpers import vprint
     from data import mk_parses
+    from rulealgs import apply_rules
 
     if args.test:
         helpers.run_doctests()
