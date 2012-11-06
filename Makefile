@@ -20,7 +20,7 @@ KEYDIR   = $(RESDIR)/devset/officialkeys
 SCORER   = $(RESDIR)/coref-scorer.py
 
 all:
-	$(PYTHON) -O coref.py $(ARGS) $(FLAGS)
+	$(PYTHON) -O coref/coref.py $(ARGS) $(FLAGS)
 
 dev:
 	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) $(FLAGS)
