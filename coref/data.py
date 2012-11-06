@@ -46,7 +46,7 @@ class FilenameException(Exception):
     pass
 
 
-def mk_parses(listfile):
+def mk_parses(listfile, corenlp_host):
     """Creates a list of FileParse objects for the files listed in the listfile
 
     Args:
@@ -66,7 +66,7 @@ def mk_parses(listfile):
         with open(listfile) as f:
             pserver = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(),
                                           jsonrpc.TransportTcpIp(
-                                          addr=("127.0.0.1", 8080)))
+                                          addr=(corenlp_host, 8080)))
             parses = dict([(get_id(path), FileParse(path, pserver))
                           for path in f.readlines()
                           if path.lstrip()[0] != '#'])

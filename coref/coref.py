@@ -13,15 +13,16 @@ This file contains class definitions for:
 
 import errno
 import argparse
-from sys import argv, stderr
+from sys import argv, stderr, stdout
 from os import strerror
 
 def main(args):
-    parses = mk_parses(args.listfile)
+    parses = mk_parses(args.listfile, args.host)
     for fid in parses.keys():
         outfile = _get_outfile_name(fid, args.responsedir)
         output( find_corefs(parses[fid]), outfile )
 
+    stdout.write("\a")
     return 0
 
 
@@ -80,6 +81,8 @@ if __name__ == '__main__':
                         action="store_true")
     parser.add_argument("-t", "--test", help="run doctests only",
                         action="store_true")
+    parser.add_argument('-H', '--host', default='127.0.0.1',
+                      help='Host to running stanford corenlp server')
     args = parser.parse_args()
 
     # if verbose flag is True, create global method vprint which prints to

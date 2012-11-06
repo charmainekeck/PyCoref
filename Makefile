@@ -2,10 +2,13 @@
 #          FILE:  Makefile
 #   DESCRIPTION:  Coreference Resolution Makefule
 #        AUTHOR:  Adam Walz <walz>, Charmaine Keck <ckeck>  
-#       VERSION:  0.0.2
+#       VERSION:  0.0.3
 # -----------------------------------------------------------------------------
-PYTHON = /home/walz/.pythonz/pythons/CPython-2.7.3/bin/python
+NLTK = NLTK_DATA=/home/walz/.nltk_data
+PYTHON = $(NLTK) /home/walz/.pythonz/pythons/CPython-2.7.3/bin/python
+CORENLP = 155.98.111.72
 
+FLAGS = -v -H $(CORENLP)
 ROOT = /home/walz/classes/cs5340/Assignments/final
 SRCDIR   = $(ROOT)/coref
 RESDIR   = $(HOME)/Public/resources
@@ -17,25 +20,25 @@ KEYDIR   = $(RESDIR)/devset/officialkeys
 SCORER   = $(RESDIR)/coref-scorer.py
 
 all:
-	$(PYTHON) -O coref.py $(ARGS)
+	$(PYTHON) -O coref.py $(ARGS) $(FLAGS)
 
 dev:
-	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) -v
+	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) $(FLAGS)
 
 debug:
-	$(PYTHON) -m pdb $(EXEC) $(LISTFILE) $(OUTDIR) -v
+	$(PYTHON) -m pdb $(EXEC) $(LISTFILE) $(OUTDIR) $(FLAGS)
 
 dev-score: dev
-	$(PYTHON) $(SCORER) $(OUTLIST) $(KEYDIR) -V
+	$(PYTHON) $(SCORER) $(OUTLIST) $(KEYDIR) $(FLAGS)
 
 set1:
 	$(PYTHON) $(EXEC) $(LISTFILE:devset=set1) $(OUTDIR)
 
 set1-score: set1
-	$(PYTHON) $(SCORER) -d $(OUTLIST:devset=set1) $(KEYDIR:devset=set1) -V
+	$(PYTHON) $(SCORER) -d $(OUTLIST:devset=set1) $(KEYDIR:devset=set1) $(FLAGS)
 
 doctests:
-	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) -t
+	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) -t $(FLAGS)
 
 clean:
 	rm -f $(SRCDIR)/*.py[co]
