@@ -12,6 +12,7 @@
 import re
 from os import strerror
 from sys import stderr
+from time import sleep
 from errno import EIO
 from xml.dom.minidom import parseString
 from xml.parsers.expat import ExpatError
@@ -21,6 +22,7 @@ from simplejson import loads
 from nltk import sent_tokenize, word_tokenize
 from nltk.tree import Tree
 from nltk.corpus import wordnet as wn
+from Levenshtein import ratio
 
 from helpers import static_var, vprint
 
@@ -57,16 +59,16 @@ def mk_parses(listfile, corenlp_host):
         list of FileParse objects
 
     """
-    if not listfile.endswith('.listfile'):
-        filetype = 'Co-Reference List file'
-        error = 'has incorrect file type'
-        raise FilenameException("Error: %s %s" % (filetype, error))
+    # if not listfile.endswith('.listfile'):
+    #         filetype = 'Co-Reference List file'
+    #         error = 'has incorrect file type'
+    #         raise FilenameException("Error: %s %s" % (filetype, error))
 
     try:
         with open(listfile) as f:
             pserver = jsonrpc.ServerProxy(jsonrpc.JsonRpc20(),
                                           jsonrpc.TransportTcpIp(
-                                          addr=(corenlp_host, 8080)))
+                                          addr=(corenlp_host, 8080), limit=1000))
             parses = dict([(get_id(path), FileParse(path, pserver))
                           for path in f.readlines()
                           if path.lstrip()[0] != '#'])
@@ -118,7 +120,7 @@ def mk_fparse(filename, pserver):
 
     """
     parses = []
-
+    
     try:
         with open(filename) as f:
             vprint('OPEN: %s' % filename)
@@ -128,11 +130,58 @@ def mk_fparse(filename, pserver):
         print("ERROR: Could not open %s" % filename)
         return (parses, get_tagged_corefs(''), get_synsets({}))
 
+    # remove unwanted characters from xml
+    vprint('\tPARSE: Parsing file: %s' % filename)
+    # parse_tries = 0
+    #     while parse_tries < 5:
+    #         try:
+    #             t = loads(pserver.parse(_normalize_sentence(_remove_tags(xml))))
+    #             parse_tries = 0
+    #             break
+    #         except jsonrpc.RPCTimeoutError:
+    #             vprint('\tERROR: RPCTimeoutError - retrying')
+    #             parse_tries += 3
+    #         except jsonrpc.RPCTransportError:
+    #             vprint('\tERROR: RPCTransportError - retrying')
+    #             data = _normalize_sentence(_remove_tags(xml))
+    #             sentences = [sent for part in data.split('\n\n')
+    #                          for sent in sent_tokenize(part)]
+    #             try:
+    #                 xml1 = data[:data.find(sentences[len(sentences)/3])]
+    #                 xml2 = data[data.find(sentences[len(sentences)/3+1]):data.find(sentences[2*len(sentences)/3])]
+    #                 xml3 = data[data.find(sentences[2*len(sentences)/3+1]):]
+    #                 t1 = loads(pserver.parse(xml1))
+    #                 t2 = loads(pserver.parse(xml2))
+    #                 t3 = loads(pserver.parse(xml3))
+    #                 t = dict(t1.items() + t2.items() + t3.items())
+    #                 parse_tries = 0
+    #                 break
+    #             except Exception:
+    #                 parse_tries = -1
+    #                 break
+    #             parse_tries += 1
+    #     if parse_tries != 0:
+    #         vprint('\tFATAL: RPCTransportError - skipping')
+    
     sentences = [sent for part in xml.split('\n\n')
                  for sent in sent_tokenize(part)]
+    vprint('\tPARSE: Parsing sentences: %s' % filename)
     for sent in sentences:
         sent_corefs = get_tagged_corefs(sent, ordered=True)
-        sparse = loads(pserver.parse(_normalize_sentence(_remove_tags(sent))))
+        # remove unwanted characters from xml
+        sent = _normalize_sentence(_remove_tags(sent))
+        parse_tries = 0
+        while parse_tries < 5:
+            try:
+                sparse = loads(pserver.parse(sent))
+                parse_tries = 0
+                break
+            except jsonrpc.RPCTransportError:
+                vprint('\tERROR: RPCTransportError - retrying')
+                parse_tries += 1
+        if parse_tries != 0:
+            vprint('\tFATAL: RPCTransportError - skipping')
+            
         pparse = _process_parse(sparse, sent_corefs)
         if pparse:
             parses.append(pparse)
@@ -143,9 +192,9 @@ def mk_fparse(filename, pserver):
             tags = pos_tags.get(word, set())
             tags.add(attr['PartOfSpeech'])
             pos_tags[word] = tags
-
+        
     return parses, get_tagged_corefs(xml), get_synsets(pos_tags)
-
+    
 
 def tag_ptree(ptree, coreflist):
     """Tags given parse tree with coreferences
@@ -264,7 +313,26 @@ def get_tagged_corefs(xml, ordered=False):
         else:
             nps[cid] = data
 
+
     return nps
+
+
+def cid_less_than(cid1, cid2):
+    if cid1.isdigit() and cid2.isdigit():
+        return int(cid1) < int(cid2)
+    else:
+        return True
+    # elif not (cid1.isdigit() or cid2.isdigit()):
+    #         num1 = int(cid1[:-1])
+    #         num2 = int(cid2[:-1])
+    #         if num1 == num2:
+    #             return cid1[-1] < cid2[-1]
+    #         else:
+    #             return num1 < num2
+    #     elif cid1.isdigit():
+    #         return True
+    #     else:
+    #         return False
 
 
 def _normalize_sentence(sent):
@@ -277,9 +345,10 @@ def _normalize_sentence(sent):
         string, normalized sentence
 
     """
-    removed = r'[\n]?'
-    nsent = re.sub(removed, '', sent)
-    return nsent.strip()
+    #sent = sent[sent.find('\n\n\n'):]
+    removed = r'[\n ]+'
+    sent = re.sub(removed, ' ', sent)
+    return sent.strip()
 
 
 def _normalize_malformed_xml(xml):

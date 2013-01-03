@@ -6,6 +6,7 @@
 # -----------------------------------------------------------------------------
 NLTK = NLTK_DATA=/home/walz/.nltk_data
 PYTHON = $(NLTK) /home/walz/.pythonz/pythons/CPython-2.7.3/bin/python
+CORENLP2 = 127.0.0.1
 CORENLP = 155.98.111.72
 
 FLAGS = -v -H $(CORENLP)
@@ -14,31 +15,37 @@ SRCDIR   = $(ROOT)/coref
 RESDIR   = $(HOME)/Public/resources
 OUTDIR   = $(HOME)/Public/outdir
 EXEC     = $(SRCDIR)/coref.py
-LISTFILE = $(RESDIR)/devset/input.listfile
-OUTLIST  = $(RESDIR)/devset/output.listfile
-KEYDIR   = $(RESDIR)/devset/officialkeys
+
+DLISTFILE = $(RESDIR)/devset/input.listfile
+DOUTLIST  = $(RESDIR)/devset/output.listfile
+DKEYDIR   = $(RESDIR)/devset/officialkeys
+
+S1LISTFILE = $(RESDIR)/set1/inlist
+S1OUTLIST  = $(RESDIR)/set1/output.listfile
+S1KEYDIR   = $(RESDIR)/set1/officialkeys
+
 SCORER   = $(RESDIR)/coref-scorer.py
 
 all:
 	$(PYTHON) -O coref/coref.py $(ARGS) $(FLAGS)
 
 dev:
-	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) $(FLAGS)
+	$(PYTHON) $(EXEC) $(DLISTFILE) $(OUTDIR) $(FLAGS)
 
 debug:
-	$(PYTHON) -m pdb $(EXEC) $(LISTFILE) $(OUTDIR) $(FLAGS)
+	$(PYTHON) -m pdb $(EXEC) $(S1LISTFILE) $(OUTDIR) $(FLAGS)
 
 dev-score: dev
-	$(PYTHON) $(SCORER) $(OUTLIST) $(KEYDIR) $(FLAGS)
+	$(PYTHON) $(SCORER) $(DOUTLIST) $(DKEYDIR) 
 
 set1:
-	$(PYTHON) $(EXEC) $(LISTFILE:devset=set1) $(OUTDIR)
+	$(PYTHON) $(EXEC) $(S1LISTFILE) $(OUTDIR) $(FLAGS)
 
 set1-score: set1
-	$(PYTHON) $(SCORER) -d $(OUTLIST:devset=set1) $(KEYDIR:devset=set1) $(FLAGS)
+	$(PYTHON) $(SCORER) $(S1OUTLIST) $(S1KEYDIR)-VV
 
 doctests:
-	$(PYTHON) $(EXEC) $(LISTFILE) $(OUTDIR) -t $(FLAGS)
+	$(PYTHON) $(EXEC) $(DLISTFILE) $(DOUTDIR) -t $(FLAGS)
 
 clean:
 	rm -f $(SRCDIR)/*.py[co]
